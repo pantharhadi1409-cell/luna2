@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luna - Center Focus</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap');
+
+        :root {
+            --bg: #000000;
+            --primary: #8b5cf6;
+            --accent: #ec4899;
+            --glass: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-main: #ffffff;
+            --text-sec: #a1a1aa;
+        }
+
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            background-image: radial-gradient(circle at 50% 0%, #1e1b4b, #000 70%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            color: var(--text-main);
+        }
+
+        /* --- MODERN MIC COMPONENT --- */
+        .modern-mic {
+            position: relative;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: 1px solid var(--glass-border);
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .modern-mic svg {
+            width: 40%; height: 40%;
+            fill: var(--text-main);
+            transition: all 0.3s ease;
+        }
+
+        .modern-mic.active {
+            background: linear-gradient(135deg, var(--accent), #be185d);
+            border-color: transparent;
+            box-shadow: 0 0 40px rgba(236, 72, 153, 0.6);
+            transform: scale(1.1);
+        }
+
+        .modern-mic.active svg { fill: white; transform: scale(0.9); }
+
+        .modern-mic.active::after {
+            content: '';
+            position: absolute;
+            inset: -5px;
+            border-radius: 50%;
+            border: 2px solid rgba(236, 72, 153, 0.5);
+            animation: breathe 2s infinite;
+        }
+
+        @keyframes breathe {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 0; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+
+        .mic-large { width: 100px; height: 100px; }
+        .mic-small { width: 80px; height: 80px; } /* Slightly bigger since it's the main focus */
+
+        /* --- LOCK SCREEN --- */
+        #lockScreen {
+            position: fixed; inset: 0; z-index: 9999;
+            background: var(--bg);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        #lockScreen.hidden {
+            opacity: 0; transform: scale(1.1);
+            pointer-events: none;
+        }
+
+        .lock-content { text-align: center; width: 85%; max-width: 350px; }
+        
+        .lock-title {
+            font-size: 1.8rem; font-weight: 700; margin-bottom: 15px;
+            background: linear-gradient(to right, #fff, #a1a1aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .pass-input-wrapper {
+            margin: 15px 0 25px 0; position: relative;
+        }
+
+        .pass-input {
+            width: 100%; background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            padding: 12px 20px; border-radius: 16px;
+            color: white; font-size: 1rem; text-align: center; outline: none; transition: 0.3s;
+        }
+        .pass-input:focus { border-color: var(--primary); background: rgba(255, 255, 255, 0.15); }
+
+        .live-transcript {
+            min-height: 24px; color: var(--accent); font-size: 0.9rem;
+            font-style: italic; margin-bottom: 20px; opacity: 0; transition: 0.3s;
+        }
+        .live-transcript.show { opacity: 1; }
+
+        .or-divider {
+            display: flex; align-items: center; color: var(--text-sec); font-size: 0.8rem; margin: 15px 0;
+        }
+        .or-divider::before, .or-divider::after {
+            content: ''; flex: 1; height: 1px; background: var(--glass-border);
+        }
+        .or-divider span { padding: 0 10px; }
+
+
+        /* --- MAIN APP --- */
+        #appContainer {
+            width: 100%; max-width: 400px;
+            height: 90vh;
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-radius: 44px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column;
+            position: relative;
+            opacity: 0; transform: translateY(20px);
+            transition: all 0.6s ease 0.4s;
+        }
+
+        #appContainer.visible { opacity: 1; transform: translateY(0); }
+
+        header {
+            padding: 20px 25px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .user-pill {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--glass); padding: 6px 12px;
+            border-radius: 30px; border: 1px solid var(--glass-border);
+        }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; }
+        .name { font-size: 0.85rem; font-weight: 500; }
+
+        .header-actions {
+            display: flex; gap: 10px; align-items: center;
+        }
+
+        .lang-switch {
+            display: flex; background: var(--glass);
+            padding: 4px; border-radius: 20px;
+        }
+        .lang-opt {
+            padding: 4px 10px; font-size: 0.75rem; border-radius: 12px;
+            cursor: pointer; color: var(--text-sec); transition: 0.2s;
+        }
+        .lang-opt.active { background: #fff; color: #000; font-weight: 600; }
+
+        /* Teach Button Moved to Header */
+        .header-teach-btn {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: white;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: 0.2s;
+        }
+        .header-teach-btn:hover { background: rgba(255,255,255,0.15); }
+
+
+        #chatArea {
+            flex: 1; padding: 20px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+
+        .msg {
+            max-width: 80%; padding: 12px 18px;
+            border-radius: 20px; font-size: 0.95rem; line-height: 1.5;
+            animation: slideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        @keyframes slideUp { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:translateY(0)} }
+
+        .msg.bot {
+            align-self: flex-start; background: var(--glass);
+            border-bottom-left-radius: 6px; color: var(--text-main);
+        }
+        .msg.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white; border-bottom-right-radius: 6px;
+            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+        }
+
+        /* Footer with Centered Mic */
+        footer {
+            padding: 25px 20px 35px;
+            display: flex;
+            flex-direction: column; /* Stack vertically */
+            justify-content: center;
+            align-items: center; /* Center everything horizontally */
+            gap: 15px;
+        }
+
+        .status {
+            font-size: 0.8rem; color: var(--text-sec);
+            letter-spacing: 1px; text-transform: uppercase;
+            transition: 0.3s;
+            text-align: center;
+        }
+        .status.active { color: var(--accent); }
+
+        /* Modal */
+        .modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
+            z-index: 100; justify-content: center; align-items: center;
+        }
+        .modal-card {
+            background: #18181b; width: 80%; max-width: 320px;
+            padding: 24px; border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5); text-align: center;
+        }
+        .inp {
+            width: 100%; padding: 12px; margin: 10px 0;
+            background: #27272a; border: 1px solid #3f3f46;
+            color: white; border-radius: 12px; outline: none;
+        }
+        .inp:focus { border-color: var(--accent); }
+        .btns { display: flex; gap: 10px; margin-top: 15px; justify-content: center; }
+        .btn { padding: 10px 20px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+        .btn-save { background: white; color: black; }
+        .btn-cancel { background: transparent; color: var(--text-sec); }
+
+    </style>
+</head>
+<body>
+
+    <!-- LOCK SCREEN -->
+    <div id="lockScreen">
+        <div class="lock-content">
+            <div class="lock-title">Luna AI</div>
+            <p style="color:var(--text-sec); font-size:0.9rem; margin-bottom:10px;">Secure Access</p>
+
+            <div class="pass-input-wrapper">
+                <input type="password" id="passInput" class="pass-input" placeholder="Type password (Hadi)">
+            </div>
+
+            <div class="or-divider"><span>OR</span></div>
+
+            <div id="liveText" class="live-transcript">Listening...</div>
+
+            <!-- CENTERED LOCK MIC -->
+            <div class="modern-mic mic-large" id="lockMic" onclick="toggleLock()">
+                <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="appContainer">
+        <header>
+            <div class="user-pill">
+                <img src="https://picsum.photos/seed/luna_center/100/100" class="avatar">
+                <span class="name">Luna</span>
+            </div>
+            
+            <div class="header-actions">
+                <!-- Teach Button moved to Header -->
+                <div class="header-teach-btn" onclick="openTeach()" title="Teach Luna">✏️</div>
+
+                <div class="lang-switch">
+                    <div class="lang-opt active" onclick="setLang('en')">EN</div>
+                    <div class="lang-opt" onclick="setLang('hi')">HI</div>
+                    <div class="lang-opt" onclick="setLang('es')">ES</div>
+                </div>
+            </div>
+        </header>
+
+        <div id="chatArea">
+            <div class="msg bot">Namaste! System Secure. 🔒<br>Type password or Tap Mic & Say "Hadi".</div>
+        </div>
+
+        <footer>
+            <!-- STATUS -->
+            <span class="status" id="statusTxt">Tap mic to speak</span>
+
+            <!-- CENTERED MAIN MIC -->
+            <div class="modern-mic mic-small" id="mainMic" onclick="toggleMain()">
+                <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+            </div>
+        </footer>
+    </div>
+
+    <!-- TEACH MODAL -->
+    <div class="modal" id="teachModal">
+        <div class="modal-card">
+            <h3 style="margin-bottom:15px; color:white;">Teach Me</h3>
+            <input type="text" id="q" class="inp" placeholder="Question">
+            <input type="text" id="a" class="inp" placeholder="Answer">
+            <div class="btns">
+                <button class="btn btn-cancel" onclick="closeTeach()">Cancel</button>
+                <button class="btn btn-save" onclick="saveTeach()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let lang = 'hi';
+        let locked = true;
+        let listening = false;
+        let src = 'lock'; 
+        let memory = { en:{}, hi:{}, es:{} };
+
+        if(localStorage.getItem('lunaCenter')) memory = JSON.parse(localStorage.getItem('lunaCenter'));
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let rec;
+
+        if(SpeechRecognition) {
+            rec = new SpeechRecognition();
+            rec.continuous = false;
+            rec.interimResults = true;
+            
+            rec.onstart = () => { listening = true; updateUI(true); };
+            rec.onend = () => { listening = false; updateUI(false); document.getElementById('liveText').classList.remove('show'); };
+            
+            rec.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                if(src === 'lock' && interimTranscript) {
+                    const liveTxt = document.getElementById('liveText');
+                    liveTxt.innerText = `"${interimTranscript}"`;
+                    liveTxt.classList.add('show');
+                }
+                if (finalTranscript) handleVoice(finalTranscript);
+            };
+        }
+
+        document.getElementById('passInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                if(this.value.toLowerCase() === 'hadi') unlock();
+                else alert("Wrong Password!");
+            }
+        });
+
+        function updateUI(active) {
+            const lock = document.getElementById('lockMic');
+            const main = document.getElementById('mainMic');
+            const txt = document.getElementById('statusTxt');
+            
+            if(active) {
+                if(src==='lock') lock.classList.add('active');
+                else { main.classList.add('active'); txt.classList.add('active'); txt.innerText = "Listening..."; }
+            } else {
+                lock.classList.remove('active');
+                main.classList.remove('active');
+                txt.classList.remove('active');
+                txt.innerText = "Tap mic to speak";
+            }
+        }
+
+        function toggleLock() {
+            src = 'lock';
+            if(listening) rec.stop();
+            else { rec.lang = 'hi-IN'; rec.start(); }
+        }
+
+        function toggleMain() {
+            if(locked) return;
+            src = 'main';
+            if(listening) rec.stop();
+            else { rec.lang = lang==='hi'?'hi-IN':(lang==='es'?'es-ES':'en-US'); rec.start(); }
+        }
+
+        function handleVoice(text) {
+            const t = text.toLowerCase();
+            if(src==='lock') {
+                if(t.includes('hadi')) unlock();
+                else alert("Try again. Say 'Hadi'");
+            } else {
+                addMsg(text, 'user');
+                setTimeout(()=>reply(text), 600);
+            }
+        }
+
+        function unlock() {
+            locked = false;
+            document.getElementById('lockScreen').classList.add('hidden');
+            setTimeout(() => document.getElementById('appContainer').classList.add('visible'), 400);
+            addMsg("Access Granted. Luna Online. 🚀", 'bot');
+            speak("Welcome.");
+        }
+
+        function addMsg(txt, type) {
+            const div = document.createElement('div');
+            div.className = `msg ${type}`;
+            div.innerText = txt;
+            document.getElementById('chatArea').appendChild(div);
+            document.getElementById('chatArea').scrollTop = 9999;
+        }
+
+        function reply(inp) {
+            const low = inp.toLowerCase();
+            let ans = "";
+            const mem = memory[lang];
+            let found = false;
+            for(let q in mem) { if(low.includes(q.toLowerCase())){ ans=mem[q]; found=true; break; } }
+
+            if(!found) {
+                if(low.includes('sad')) ans = lang==='hi'?"Don't worry, main hoon na.":"Don't worry, I'm here.";
+                else {
+                    const qt = { en:["Stay strong!","You got this!"], hi:["Mazboot raho!","Tu kar sakta hai!"], es:["Fuerte!","Tú puedes!"] };
+                    ans = qt[lang][Math.floor(Math.random()*2)];
+                }
+            }
+            addMsg(ans, 'bot');
+            speak(ans);
+        }
+
+        function speak(txt) {
+            const u = new SpeechSynthesisUtterance(txt);
+            u.lang = lang==='hi'?'hi-IN':(lang==='es'?'es-ES':'en-US');
+            u.pitch = 1.2;
+            window.speechSynthesis.speak(u);
+        }
+
+        function setLang(l) {
+            lang = l;
+            document.querySelectorAll('.lang-opt').forEach(x => x.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function openTeach() { document.getElementById('teachModal').style.display='flex'; }
+        function closeTeach() { document.getElementById('teachModal').style.display='none'; }
+        function saveTeach() {
+            const q=document.getElementById('q').value, a=document.getElementById('a').value;
+            if(q && a) {
+                memory[lang][q]=a;
+                localStorage.setItem('lunaCenter', JSON.stringify(memory));
+                closeTeach();
+                alert("Saved! 🧠");
+            }
+        }
+    </script>
+</body>
+</html>
